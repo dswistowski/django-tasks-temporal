@@ -55,6 +55,8 @@ TASKS = {
         "QUEUES": [],  # Empty list = allow all queue names
         "OPTIONS": {
             "target_host": "localhost:7233",
+            "max_concurrent_workflow_tasks": 1,
+            "max_concurrent_activities": 1,
         },
     },
 }

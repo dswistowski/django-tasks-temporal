@@ -15,8 +15,8 @@ def fail(message: str):
 
 
 @task
-def long_running_task(run_time: timedelta) -> str:
-    time.sleep(run_time.total_seconds())
+def long_running_task(run_time: float) -> str:
+    time.sleep(run_time)
     return f"Finished long running task - slept for {run_time} seconds"
 
 @task(takes_context=True)

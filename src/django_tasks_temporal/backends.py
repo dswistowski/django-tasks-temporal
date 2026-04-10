@@ -6,6 +6,7 @@ from asgiref.sync import async_to_sync, AsyncSingleThreadContext
 from django.tasks.backends.base import BaseTaskBackend
 from django.tasks.base import Task, TaskResult, TaskResultStatus, TaskError
 from temporalio.client import Client, WorkflowExecutionStatus
+from temporalio.common import Priority
 
 from .client import get_client
 from .types import Options
@@ -17,7 +18,7 @@ class TemporalTaskBackend(BaseTaskBackend):
     supports_defer = True
     supports_async_task = True
     supports_get_result = True
-    supports_priority = False
+    supports_priority = True
 
     def get_options(self) -> Options:
         return Options.from_options(self.options)
@@ -108,19 +109,24 @@ class TemporalTaskBackend(BaseTaskBackend):
     async def aenqueue(self, task: Task, args, kwargs) -> TaskResult:
         self.validate_task(task)
         client = await self.get_client()
-        task_id = str(uuid4())
+        task_id = f"{task.name}-{task.priority}-{uuid4()}"
 
         if task.run_after:
             now = datetime.now(tz=timezone.utc)
             delay = (task.run_after - now)
         else:
             delay = None
+
+        # django priority -100 (highest) to 100 (lowest), temporal priority 1 (highest) to 201 (lowest)
+        priority = Priority(priority_key=-1 * (task.priority - 101)) if task.priority else Priority.default
+
         await client.start_workflow(
             RunDjangoTaskWorkflow.run,
             DjangoWorkflowRunParams.from_task(task, args=args, kwargs=kwargs),
             id=task_id,
             task_queue=self.get_options().task_queue,
-            start_delay=delay
+            start_delay=delay,
+            priority=priority
         )
         return TaskResult(
             task=task,

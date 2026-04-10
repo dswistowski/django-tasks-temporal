@@ -1,4 +1,5 @@
 from datetime import timedelta, timezone, datetime
+from time import sleep
 
 import pytest
 from django.tasks import TaskResultStatus
@@ -50,6 +51,7 @@ def test_get_result_with_context(backend: TemporalTaskBackend):
         retrieved = backend.get_result(task_id)
         if retrieved.status != TaskResultStatus.RUNNING:
             break
+        sleep(0.1)
 
     assert retrieved.id == task_id
     assert retrieved.status == TaskResultStatus.SUCCESSFUL
@@ -72,6 +74,7 @@ def test_fail_task(backend: TemporalTaskBackend):
         retrieved = backend.get_result(task_id)
         if retrieved.status != TaskResultStatus.RUNNING:
             break
+        sleep(0.1)
 
     assert retrieved.id == task_id
     assert retrieved.status == TaskResultStatus.FAILED
@@ -91,9 +94,11 @@ def test_defer(backend: TemporalTaskBackend):
         retrieved = backend.get_result(task_id)
         if retrieved.status != TaskResultStatus.RUNNING:
             break
+        sleep(0.1)
 
     assert retrieved.id == task_id
     assert retrieved.status == TaskResultStatus.SUCCESSFUL
     time = datetime.strptime(retrieved.return_value, "%H:%M:%S.%f")
     delta = timedelta(hours=time.hour, minutes=time.minute, seconds=time.second, microseconds=time.microsecond)
     assert delta >= timedelta(seconds=2)
+
