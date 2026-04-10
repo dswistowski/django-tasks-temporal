@@ -1,0 +1,19 @@
+services:
+  temporal:
+    image: temporalio/admin-tools
+    ports:
+        - "7233:7233"
+        - "8233:8233"
+    entrypoint:
+      - temporal
+      - server
+      - start-dev
+      - --ip
+      - 0.0.0.0
+      - --db-filename
+      - /tmp/temporal.db
+    healthcheck:
+      test: ["CMD", "temporal", "operator", "cluster", "health", "--address", "localhost:7233"]
+      interval: 5s
+      start_period: 10s
+      retries: 5

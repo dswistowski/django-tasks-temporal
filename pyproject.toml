@@ -36,7 +36,10 @@ classifiers = [
 ]
 requires-python = ">=3.12"
 
-dependencies = []
+dependencies = [
+    "django>=6.0",
+    "temporalio>=1.25.0",
+]
 
 [build-system]
 requires = ["uv_build>=0.10.12,<0.11.0"]
@@ -66,3 +69,16 @@ ignore = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["django_tasks_temporal"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "django_app.settings"
+pythonpath = [".", "tests"]
+addopts = "-v"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.20.0",
+    "pytest>=9.0.3",
+    "pytest-django>=4.12.0",
+    "ruff>=0.15.10",
+]
