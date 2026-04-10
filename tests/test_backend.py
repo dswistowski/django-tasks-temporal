@@ -1,3 +1,4 @@
+import pytest
 from django.tasks import TaskResultStatus
 
 from django_app import tasks
@@ -11,16 +12,67 @@ def test_enqueue_task(backend: TemporalTaskBackend):
     assert result.status == TaskResultStatus.READY
     assert result.args == [1, 2]
 
-
+@pytest.mark.timeout(10)
 def test_get_result(backend: TemporalTaskBackend):
     """Test retrieving a task result."""
 
     result = tasks.add.enqueue(3, 4)
 
     task_id = result.id
-
-    retrieved = backend.get_result(task_id)
+    while True:
+        retrieved = backend.get_result(task_id)
+        if retrieved.status != TaskResultStatus.RUNNING:
+            break
 
     assert retrieved.id == task_id
-    assert retrieved.status == TaskResultStatus.READY
+    assert retrieved.status == TaskResultStatus.SUCCESSFUL
     assert retrieved.args == [3, 4]
+    assert retrieved.return_value == 7
+
+def test_enqueue_task_with_context(backend: TemporalTaskBackend):
+    """Test enqueuing a task with context."""
+    result = tasks.task_with_context.enqueue("Hello")
+    assert result is not None
+    assert result.id is not None
+    assert result.status == TaskResultStatus.READY
+    assert result.args == ["Hello"]
+
+@pytest.mark.timeout(20)
+def test_get_result_with_context(backend: TemporalTaskBackend):
+    """Test retrieving a task result with context."""
+    result = tasks.task_with_context.enqueue("World")
+
+    task_id = result.id
+
+    while True:
+        retrieved = backend.get_result(task_id)
+        if retrieved.status != TaskResultStatus.RUNNING:
+            break
+
+    assert retrieved.id == task_id
+    assert retrieved.status == TaskResultStatus.SUCCESSFUL
+    assert retrieved.args == ["World"]
+    assert retrieved.task.takes_context
+    assert len(retrieved.worker_ids)
+    assert retrieved.return_value == "Task succeeded on attempt 3 with value: World"
+
+    assert len(retrieved.errors)
+
+
+@pytest.mark.timeout(20)
+def test_fail_task(backend: TemporalTaskBackend):
+    """Test enqueuing a task that fails."""
+    result = tasks.fail.enqueue("Something went wrong")
+
+    task_id = result.id
+
+    while True:
+        retrieved = backend.get_result(task_id)
+        if retrieved.status != TaskResultStatus.RUNNING:
+            break
+
+    assert retrieved.id == task_id
+    assert retrieved.status == TaskResultStatus.FAILED
+    assert retrieved.args == ["Something went wrong"]
+    assert len(retrieved.errors) == 1
+    assert retrieved.errors[0].exception_class_path == "CriricalFailure"

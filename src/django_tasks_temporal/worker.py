@@ -5,53 +5,29 @@ from typing import Mapping, Any
 from temporalio.client import Client
 from temporalio.worker import Worker
 from temporalio import workflow
-with workflow.unsafe.imports_passed_through():
-    from .workflows import RunDjangoTaskWorkflow
-    from .activities import run_django_task_activity
 
-def lazy_django_debug() -> bool:
-    from django.conf import settings
-    return settings.DEBUG
+from django_tasks_temporal.backends import Options
+from django_tasks_temporal.client import get_client
 
-@dataclass(frozen=True)
-class WorkerOptions:
-    target_host: str
-    debug_mode: bool = False
-    namespace: str = "default"
-    task_queue: str = "django-tasks"
-    max_concurrent_workflow_tasks: int | None = None
-    max_concurrent_activities: int | None = None
+from .workflows import RunDjangoTaskWorkflow
+from .activities import run_django_task_activity
 
-    @classmethod
-    def from_options(cls, options: Mapping[str, Any]) -> "WorkerOptions":
 
-        if not options.get("target_host"):
-            raise ValueError("The 'target_host' option is required to run the Temporal worker.")
-        return cls(
-            target_host=options["target_host"],
-            debug_mode=lazy_django_debug(),
-            namespace=options.get("namespace", "default"),
-            task_queue=options.get("task_queue", "django-tasks"),
-            max_concurrent_workflow_tasks=options.get("max_concurrent_workflow_tasks"),
-            max_concurrent_activities=options.get("max_concurrent_activities"),
-        )
-
-async def run_worker(options: WorkerOptions):
-    client = await Client.connect(options.target_host, namespace=options.namespace)
+async def run_worker(options: Options):
     worker = Worker(
-        client,
+        await get_client(options),
         task_queue=options.task_queue,
         workflows=[RunDjangoTaskWorkflow],
         activities=[run_django_task_activity],
-        # max_concurrent_workflow_tasks=options.max_concurrent_workflow_tasks,
-        # max_concurrent_activities=options.max_concurrent_activities,
-        # debug_mode=options.debug_mode,
+        max_concurrent_workflow_tasks=options.max_concurrent_workflow_tasks,
+        max_concurrent_activities=options.max_concurrent_activities,
+        debug_mode=options.debug_mode,
     )
     await worker.run()
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
     import argparse
     import asyncio
 
@@ -63,5 +39,5 @@ if __name__ == "__main__":
     parser.add_argument("--max_concurrent_activities", type=int, help="Maximum number of concurrent activities.")
     args = parser.parse_args()
 
-    options = WorkerOptions.from_options(vars(args))
+    options = Options.from_options(vars(args))
     asyncio.run(run_worker(options))

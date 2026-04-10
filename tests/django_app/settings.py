@@ -53,7 +53,9 @@ TASKS = {
     "default": {
         "BACKEND": "django_tasks_temporal.backends.TemporalTaskBackend",
         "QUEUES": [],  # Empty list = allow all queue names
-        "OPTIONS": {},
+        "OPTIONS": {
+            "target_host": "localhost:7233",
+        },
     },
 }
 
