@@ -51,7 +51,7 @@ TIME_ZONE = "UTC"
 
 TASKS = {
     "default": {
-        "BACKEND": "django_tasks_temporal.backends.TemporalTaskBackend",
+        "BACKEND": "django_tasks_temporal.TemporalTaskBackend",
         "QUEUES": [],  # Empty list = allow all queue names
         "OPTIONS": {
             "target_host": "localhost:7233",

@@ -32,7 +32,7 @@ sequenceDiagram
 ## Installation
 
 ```bash
-pip install django-tasks-temporal
+uv add django-tasks-temporal
 ```
 
 ## Quick Start
@@ -53,6 +53,10 @@ TASKS = {
     "default": {
         "BACKEND": "django_tasks_temporal.TemporalTaskBackend",
         "QUEUES": [],  # Empty list = allow all queue names
+        "OPTIONS": {
+            "target_host": "localhost:7233",
+            # Temporal connection options (e.g. host, namespace)
+        },
     },
 }
 ```
@@ -81,6 +85,14 @@ print(f"Task ID: {result.id}")
 python manage.py run_temporal_tasks
 ```
 
+5.a
+
+Alternatively you can start a worker directly without manage.py:
+```bash
+DJANGO_SETTINGS_MODULE="your-django.settings" python -m django_tasks_temporal.worker
+```
+
+
 ## Configuration Options
 
 ```python
@@ -89,6 +101,11 @@ TASKS = {
         "BACKEND": "django_tasks_templral.TemporalTaskBackend",
         "QUEUES": [],  # Empty list = allow all queue names
         "OPTIONS": {
+            "target_host": "localhost:7233",  # Temporal server address
+            "namespace": "default",  # Temporal namespace
+            "task_queue": "django-tasks", # Temporal task queue name
+            "max_concurrent_workflow_tasks": 0,  # Max concurrent workflow tasks (0 = unlimited)
+            "max_concurrent_activities": 0,  # Max concurrent activity tasks (0 = unlimited)
         },
     },
 }
@@ -139,24 +156,6 @@ Available endpoints:
 
 ## Public API
 
-The `executor` module provides functions for programmatic task management:
-
-```python
-from django_tasks_temporal import executor
-
-# Process tasks
-result = executor.process_one_task(queue_name="default")
-results = executor.process_tasks(max_tasks=10)
-
-# Execute specific task
-result = executor.run_task_by_id(task_id, allow_retry=True)
-
-# Get pending task count
-count = executor.get_pending_task_count()
-
-# Purge completed tasks
-deleted = executor.purge_completed_tasks(days=7)
-```
 
 ## License
 

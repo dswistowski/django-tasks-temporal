@@ -38,6 +38,7 @@ requires-python = ">=3.12"
 
 dependencies = [
     "django>=6.0",
+    "django-stubs[compatible-mypy]>=6.0.2",
     "temporalio>=1.25.0",
 ]
 
@@ -84,3 +85,7 @@ dev = [
     "pytest-timeout>=2.4.0",
     "ruff>=0.15.10",
 ]
+
+
+[tool.mypy]
+plugins = ["mypy_django_plugin.main"]
