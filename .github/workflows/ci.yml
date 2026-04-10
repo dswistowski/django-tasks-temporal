@@ -1,0 +1,117 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  ruff:
+    name: Ruff
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --dev --locked
+
+      - name: Check formatting
+        run: uv run ruff format --check .
+
+      - name: Lint
+        run: uv run ruff check .
+
+  mypy:
+    name: Mypy
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: tests
+      DJANGO_SETTINGS_MODULE: django_app.settings
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --dev --locked
+
+      - name: Run mypy
+        run: uv run mypy --strict .
+
+  pytest:
+    name: Pytest (${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    services:
+      temporal:
+        image: temporalio/admin-tools
+        entrypoint: temporal
+        command: >-
+          server start-dev --ip 0.0.0.0 --db-filename /tmp/temporal.db
+        ports:
+          - 7233:7233
+          - 8233:8233
+        options: >-
+          --health-cmd "temporal operator cluster health --address localhost:7233"
+          --health-interval 5s
+          --health-start-period 10s
+          --health-retries 5
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.12"
+          - "3.13"
+          - "3.14"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --dev --locked
+
+      - name: Start worker
+        run: |
+          nohup env PYTHONPATH="tests" DJANGO_SETTINGS_MODULE="django_app.settings" \
+            uv run python -m django_tasks_temporal.worker \
+            > worker.log 2>&1 &
+          echo $! > worker.pid
+
+      - name: Wait for worker
+        run: sleep 5
+
+      - name: Run pytest
+        run: uv run pytest -v --tb=short --disable-warnings ./tests
+
+      - name: Show logs on failure
+        if: failure()
+        run: |
+          cat worker.log
+
+      - name: Stop worker
+        if: always()
+        run: |
+          if [ -f worker.pid ]; then
+            kill "$(cat worker.pid)" || true
+          fi
