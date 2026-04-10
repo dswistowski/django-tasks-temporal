@@ -2,7 +2,9 @@ from datetime import datetime
 
 from django.tasks import Task, TaskContext, TaskResult, TaskResultStatus
 from temporalio import activity
+
 from .types import DjangoWorkflowRunParams
+
 
 @activity.defn
 async def run_django_task_activity(param: DjangoWorkflowRunParams, workflow_id: str, workflow_start_time: datetime):

@@ -1,17 +1,16 @@
-from datetime import datetime, timezone
-from typing import override, Mapping, Any, assert_never
+from datetime import UTC, datetime
+from typing import assert_never, override
 from uuid import uuid4
 
-from asgiref.sync import async_to_sync, AsyncSingleThreadContext
+from asgiref.sync import AsyncSingleThreadContext, async_to_sync
 from django.tasks.backends.base import BaseTaskBackend
-from django.tasks.base import Task, TaskResult, TaskResultStatus, TaskError
+from django.tasks.base import Task, TaskError, TaskResult, TaskResultStatus
 from temporalio.client import Client, WorkflowExecutionStatus
 from temporalio.common import Priority
 
 from .client import get_client
-from .types import Options
+from .types import DjangoWorkflowRunParams, Options
 from .workflows import RunDjangoTaskWorkflow
-from .types import DjangoWorkflowRunParams
 
 
 class TemporalTaskBackend(BaseTaskBackend):
@@ -109,16 +108,16 @@ class TemporalTaskBackend(BaseTaskBackend):
     async def aenqueue(self, task: Task, args, kwargs) -> TaskResult:
         self.validate_task(task)
         client = await self.get_client()
-        task_id = f"{task.name}-{task.priority}-{uuid4()}"
+        task_id = f"{task.module_path}-{uuid4()}"
 
         if task.run_after:
-            now = datetime.now(tz=timezone.utc)
+            now = datetime.now(tz=UTC)
             delay = (task.run_after - now)
         else:
             delay = None
 
         # django priority -100 (highest) to 100 (lowest), temporal priority 1 (highest) to 201 (lowest)
-        priority = Priority(priority_key=-1 * (task.priority - 101)) if task.priority else Priority.default
+        priority = Priority(priority_key=task.priority + 101) if task.priority is not None else Priority.default
 
         await client.start_workflow(
             RunDjangoTaskWorkflow.run,
@@ -134,7 +133,7 @@ class TemporalTaskBackend(BaseTaskBackend):
             status=TaskResultStatus.READY,
             args=args,
             kwargs=kwargs,
-            enqueued_at=datetime.now(tz=timezone.utc),
+            enqueued_at=datetime.now(tz=UTC),
             started_at=None,
             finished_at=None,
             last_attempted_at=None,

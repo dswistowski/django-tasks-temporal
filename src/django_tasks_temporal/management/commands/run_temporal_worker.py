@@ -5,41 +5,21 @@ import subprocess
 import sys
 
 from django.core.management import BaseCommand
+from django.tasks import task_backends
 from django.utils.translation import gettext_lazy as _
 
-from django.tasks import task_backends
-from django_tasks_temporal.backends import TemporalTaskBackend, Options
+from django_tasks_temporal.backends import Options, TemporalTaskBackend
 from django_tasks_temporal.worker import run_worker
 
 
-def _spawn_worker_subprocess(options: Options) -> int:
+def _spawn_worker_subprocess(backend: str) -> int:
     cmd = [
         sys.executable,
         "-m",
         "django_tasks_temporal.worker",
-        "--target_host",
-        str(options.target_host),
-        "--namespace",
-        str(options.namespace),
-        "--task_queue",
-        str(options.task_queue),
+        "--backend",
+        backend
     ]
-
-    if options.max_concurrent_workflow_tasks is not None:
-        cmd.extend(
-            [
-                "--max_concurrent_workflow_tasks",
-                str(options.max_concurrent_workflow_tasks),
-            ]
-        )
-
-    if options.max_concurrent_activities is not None:
-        cmd.extend(
-            [
-                "--max_concurrent_activities",
-                str(options.max_concurrent_activities),
-            ]
-        )
 
     env = os.environ.copy()
     result = subprocess.run(cmd, env=env, check=False)
@@ -112,4 +92,4 @@ class Command(BaseCommand):
             )
 
             exit_code = _spawn_worker_subprocess(worker_options)
-            raise SystemExit(exit_code)
+            raise SystemExit(exit_code) from None

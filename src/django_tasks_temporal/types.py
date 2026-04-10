@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-import json
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Mapping, Any, Callable
+from typing import Any
 
 from django.tasks import Task
 from django.utils.module_loading import import_string
+
 
 def lazy_django_debug() -> bool:
     from django.conf import settings
@@ -21,7 +22,7 @@ class Options:
     max_concurrent_activities: int | None = None
 
     @classmethod
-    def from_options(cls, options: Mapping[str, Any]) -> "Options":
+    def from_options(cls, options: Mapping[str, Any]) -> Options:
         if not options.get("target_host"):
             raise ValueError("The 'target_host' option is required to run the Temporal worker.")
         return cls(
@@ -42,7 +43,7 @@ class DjangoWorkflowRunParams:
 
 
     @classmethod
-    def from_task(cls, task: Task, args: tuple, kwargs: dict) -> "DjangoWorkflowRunParams":
+    def from_task(cls, task: Task, args: tuple, kwargs: dict) -> DjangoWorkflowRunParams:
         task_path = f"{task.func.__module__}.{task.func.__qualname__}"
         return DjangoWorkflowRunParams(
             task_path=task_path,
@@ -54,7 +55,7 @@ class DjangoWorkflowRunParams:
         return import_string(self.task_path)
 
     @classmethod
-    def from_dict(cls, input: dict) -> "DjangoWorkflowRunParams":
+    def from_dict(cls, input: dict) -> DjangoWorkflowRunParams:
         return cls(
             task_path=input["task_path"],
             args=tuple(input["args"]),

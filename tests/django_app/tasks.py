@@ -1,5 +1,4 @@
-import time
-from datetime import timedelta, datetime
+from datetime import datetime
 
 from django.tasks import task
 from temporalio.exceptions import ApplicationError
@@ -13,11 +12,6 @@ def add(x: int, y: int) -> int:
 def fail(message: str):
     raise ApplicationError(f"Task failed: {message}", type="CriricalFailure",  non_retryable=True)
 
-
-@task
-def long_running_task(run_time: float) -> str:
-    time.sleep(run_time)
-    return f"Finished long running task - slept for {run_time} seconds"
 
 @task(takes_context=True)
 def task_with_context(context, value: str) -> str:
