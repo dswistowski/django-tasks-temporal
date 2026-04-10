@@ -1,3 +1,5 @@
+from datetime import timedelta, timezone, datetime
+
 import pytest
 from django.tasks import TaskResultStatus
 
@@ -59,7 +61,7 @@ def test_get_result_with_context(backend: TemporalTaskBackend):
     assert len(retrieved.errors)
 
 
-@pytest.mark.timeout(20)
+@pytest.mark.timeout(10)
 def test_fail_task(backend: TemporalTaskBackend):
     """Test enqueuing a task that fails."""
     result = tasks.fail.enqueue("Something went wrong")
@@ -76,3 +78,22 @@ def test_fail_task(backend: TemporalTaskBackend):
     assert retrieved.args == ["Something went wrong"]
     assert len(retrieved.errors) == 1
     assert retrieved.errors[0].exception_class_path == "CriricalFailure"
+
+@pytest.mark.timeout(10)
+def test_defer(backend: TemporalTaskBackend):
+    """Test enqueuing a task that defers itself."""
+    now = datetime.now(tz=timezone.utc)
+    result = tasks.time_difference.using(run_after=now + timedelta(seconds=2)).enqueue(now.isoformat())
+
+    task_id = result.id
+
+    while True:
+        retrieved = backend.get_result(task_id)
+        if retrieved.status != TaskResultStatus.RUNNING:
+            break
+
+    assert retrieved.id == task_id
+    assert retrieved.status == TaskResultStatus.SUCCESSFUL
+    time = datetime.strptime(retrieved.return_value, "%H:%M:%S.%f")
+    delta = timedelta(hours=time.hour, minutes=time.minute, seconds=time.second, microseconds=time.microsecond)
+    assert delta >= timedelta(seconds=2)

@@ -1,5 +1,5 @@
 import time
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from django.tasks import task
 from temporalio.exceptions import ApplicationError
@@ -24,3 +24,11 @@ def task_with_context(context, value: str) -> str:
     if context.attempt <= 2:
         raise RuntimeError(f"Task failed on attempt {context.attempt}")
     return f"Task succeeded on attempt {context.attempt} with value: {value}"
+
+
+@task
+def time_difference(the_time_raw: str) -> str:
+    the_time = datetime.fromisoformat(the_time_raw)
+    now = datetime.now(tz=the_time.tzinfo)
+
+    return str(now - the_time)

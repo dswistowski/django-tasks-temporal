@@ -14,8 +14,8 @@ from .types import DjangoWorkflowRunParams
 
 
 class TemporalTaskBackend(BaseTaskBackend):
-    supports_defer = False
-    supports_async_task = False
+    supports_defer = True
+    supports_async_task = True
     supports_get_result = True
     supports_priority = False
 
@@ -88,17 +88,16 @@ class TemporalTaskBackend(BaseTaskBackend):
                 )
         match description.status:
             case WorkflowExecutionStatus.RUNNING | WorkflowExecutionStatus.CONTINUED_AS_NEW:
-                return task_result
+                pass
             case WorkflowExecutionStatus.COMPLETED:
                 result = await handle.result()
                 object.__setattr__(task_result, "status", TaskResultStatus.SUCCESSFUL)
                 object.__setattr__(task_result, "_return_value", result)
-                return task_result
             case WorkflowExecutionStatus.FAILED | WorkflowExecutionStatus.CANCELED | WorkflowExecutionStatus.TERMINATED | WorkflowExecutionStatus.TIMED_OUT | None:
                 object.__setattr__(task_result, "status", TaskResultStatus.FAILED)
-                return task_result
             case _:
                 assert_never(description.status)
+        return task_result
 
     @override
     def enqueue(self, task: Task, args, kwargs) -> TaskResult:
@@ -110,11 +109,18 @@ class TemporalTaskBackend(BaseTaskBackend):
         self.validate_task(task)
         client = await self.get_client()
         task_id = str(uuid4())
+
+        if task.run_after:
+            now = datetime.now(tz=timezone.utc)
+            delay = (task.run_after - now)
+        else:
+            delay = None
         await client.start_workflow(
             RunDjangoTaskWorkflow.run,
             DjangoWorkflowRunParams.from_task(task, args=args, kwargs=kwargs),
             id=task_id,
             task_queue=self.get_options().task_queue,
+            start_delay=delay
         )
         return TaskResult(
             task=task,
