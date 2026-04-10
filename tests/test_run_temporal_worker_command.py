@@ -3,13 +3,14 @@ from io import StringIO
 import pytest
 from django.core.management import call_command
 
-from django_tasks_temporal.backends import Options, TemporalTaskBackend
+from django_tasks_temporal.backends import TemporalTaskBackend
 from django_tasks_temporal.management.commands import run_temporal_worker
+from django_tasks_temporal.types import Options
 
 
 def test_run_temporal_worker_starts_worker(
     backend: TemporalTaskBackend, monkeypatch: pytest.MonkeyPatch
-):
+) -> None:
     captured = {}
 
     async def fake_run_worker(options: Options) -> None:
@@ -28,7 +29,7 @@ def test_run_temporal_worker_starts_worker(
 
 def test_run_temporal_worker_rejects_non_temporal_backend(
     monkeypatch: pytest.MonkeyPatch,
-):
+) -> None:
     monkeypatch.setattr(run_temporal_worker, "task_backends", {"default": object()})
 
     stderr = StringIO()
@@ -41,14 +42,14 @@ def test_run_temporal_worker_rejects_non_temporal_backend(
 
 def test_run_temporal_worker_falls_back_to_subprocess(
     backend: TemporalTaskBackend, monkeypatch: pytest.MonkeyPatch
-):
+) -> None:
     captured = {}
 
     async def failing_run_worker(options: Options) -> None:
         raise RuntimeError("Failed validating workflow")
 
-    def fake_spawn_worker_subprocess(options: Options) -> int:
-        captured["options"] = options
+    def fake_spawn_worker_subprocess(backend_name: str) -> int:
+        captured["backend_name"] = backend_name
         return 7
 
     monkeypatch.setattr(run_temporal_worker, "task_backends", {"default": backend})
@@ -64,13 +65,13 @@ def test_run_temporal_worker_falls_back_to_subprocess(
     with pytest.raises(SystemExit, match="7"):
         call_command("run_temporal_worker", stderr=stderr)
 
-    assert captured["options"] == Options.from_options(backend.options)
+    assert captured["backend_name"] == "default"
     assert "Retrying in a clean Python subprocess" in stderr.getvalue()
 
 
 def test_run_temporal_worker_no_fallback_reraises_startup_error(
     backend: TemporalTaskBackend, monkeypatch: pytest.MonkeyPatch
-):
+) -> None:
     async def failing_run_worker(options: Options) -> None:
         raise RuntimeError("Failed validating workflow")
 

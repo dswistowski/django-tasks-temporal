@@ -3,23 +3,19 @@ import asyncio
 import os
 import subprocess
 import sys
+from typing import Any
 
 from django.core.management import BaseCommand
 from django.tasks import task_backends
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext as _
 
-from django_tasks_temporal.backends import Options, TemporalTaskBackend
+from django_tasks_temporal.backends import TemporalTaskBackend
+from django_tasks_temporal.types import Options
 from django_tasks_temporal.worker import run_worker
 
 
 def _spawn_worker_subprocess(backend: str) -> int:
-    cmd = [
-        sys.executable,
-        "-m",
-        "django_tasks_temporal.worker",
-        "--backend",
-        backend
-    ]
+    cmd = [sys.executable, "-m", "django_tasks_temporal.worker", "--backend", backend]
 
     env = os.environ.copy()
     result = subprocess.run(cmd, env=env, check=False)
@@ -57,8 +53,8 @@ class Command(BaseCommand):
             help=_("Do not fall back to spawning a clean worker subprocess."),
         )
 
-    def handle(self, *args, **options):
-        backend_name = options["backend"]
+    def handle(self, *args: Any, **options: Any) -> None:
+        backend_name = str(options["backend"])
         backend = task_backends[backend_name]
 
         if not isinstance(backend, TemporalTaskBackend):
@@ -91,5 +87,5 @@ class Command(BaseCommand):
                 )
             )
 
-            exit_code = _spawn_worker_subprocess(worker_options)
+            exit_code = _spawn_worker_subprocess(backend_name)
             raise SystemExit(exit_code) from None

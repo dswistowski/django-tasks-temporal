@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from temporalio import workflow
 
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 @workflow.defn(sandboxed=False)
 class RunDjangoTaskWorkflow:
     @workflow.run
-    async def run(self, params: DjangoWorkflowRunParams):
+    async def run(self, params: DjangoWorkflowRunParams) -> Any:
         workflow_info = workflow.info()
 
         return await workflow.execute_activity(

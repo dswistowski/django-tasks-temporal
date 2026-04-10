@@ -89,3 +89,7 @@ dev = [
 
 [tool.mypy]
 plugins = ["mypy_django_plugin.main"]
+mypy_path = ["tests"]
+
+[tool.django-stubs]
+django_settings_module = "django_app.settings"

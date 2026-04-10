@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from datetime import datetime
+from typing import Any
 
 from django.tasks import Task, TaskContext, TaskResult, TaskResultStatus
 from temporalio import activity
@@ -7,25 +10,30 @@ from .types import DjangoWorkflowRunParams
 
 
 @activity.defn
-async def run_django_task_activity(param: DjangoWorkflowRunParams, workflow_id: str, workflow_start_time: datetime):
+async def run_django_task_activity(
+    param: DjangoWorkflowRunParams,
+    workflow_id: str,
+    workflow_start_time: datetime,
+) -> Any:
     task = param.get_task()
     if not isinstance(task, Task):
         raise RuntimeError("Expected a Task")
     if task.takes_context:
         activity_info = activity.info()
-        context = TaskContext(
+        context: TaskContext[..., Any] = TaskContext(
             task_result=TaskResult(
-                task=param.get_task(),
+                task=task,
                 id=workflow_id,
                 status=TaskResultStatus.RUNNING,
                 enqueued_at=workflow_start_time,
                 started_at=activity_info.started_time,
                 finished_at=None,
                 last_attempted_at=activity_info.started_time,
-                args=param.args,
+                args=list(param.args),
                 kwargs=param.kwargs,
-                  backend=task.backend,
-                worker_ids=['temporal-worker'] * activity_info.attempt,  # This is a bit of a hack since Temporal doesn't provide worker IDs to activities
+                backend=task.backend,
+                worker_ids=["temporal-worker"]
+                * activity_info.attempt,  # This is a bit of a hack since Temporal doesn't provide worker IDs to activities
                 errors=[],
             )
         )
