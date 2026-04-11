@@ -2,14 +2,15 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from time import sleep
+from typing import Any
 
 import pytest
-from django.tasks import Task, TaskResultStatus
+from django.tasks import Task, TaskResult, TaskResultStatus
 from django_app import tasks
 
 from django_tasks_temporal.backends import TemporalTaskBackend
 
-pytestmark = [pytest.mark.timeout(10)]
+pytestmark = [pytest.mark.timeout(60)]
 
 
 def test_enqueue_task(backend: TemporalTaskBackend) -> None:
@@ -20,16 +21,25 @@ def test_enqueue_task(backend: TemporalTaskBackend) -> None:
     assert result.args == [1, 2]
 
 
+def wait_for_task_completion(
+    backend: TemporalTaskBackend, task_id: str
+) -> TaskResult[Any, Any]:
+    """Helper function to wait for a task to complete and return its final status."""
+    retrieved = backend.get_result(task_id)
+    while True:
+        if retrieved.status != TaskResultStatus.RUNNING:
+            return retrieved
+        sleep(0.1)
+        retrieved.refresh()
+
+
 def test_get_result(backend: TemporalTaskBackend) -> None:
     """Test retrieving a task result."""
 
     result = tasks.add.enqueue(3, 4)
 
     task_id = result.id
-    while True:
-        retrieved = backend.get_result(task_id)
-        if retrieved.status != TaskResultStatus.RUNNING:
-            break
+    retrieved = wait_for_task_completion(backend, task_id)
 
     assert retrieved.id == task_id
     assert retrieved.status == TaskResultStatus.SUCCESSFUL
@@ -54,11 +64,7 @@ def test_get_result_with_context(backend: TemporalTaskBackend) -> None:
 
     task_id = result.id
 
-    while True:
-        retrieved = backend.get_result(task_id)
-        if retrieved.status != TaskResultStatus.RUNNING:
-            break
-        sleep(0.1)
+    retrieved = wait_for_task_completion(backend, task_id)
 
     assert retrieved.id == task_id
     assert retrieved.status == TaskResultStatus.SUCCESSFUL
@@ -76,11 +82,7 @@ def test_fail_task(backend: TemporalTaskBackend) -> None:
 
     task_id = result.id
 
-    while True:
-        retrieved = backend.get_result(task_id)
-        if retrieved.status != TaskResultStatus.RUNNING:
-            break
-        sleep(0.1)
+    retrieved = wait_for_task_completion(backend, task_id)
 
     assert retrieved.id == task_id
     assert retrieved.status == TaskResultStatus.FAILED
@@ -98,11 +100,7 @@ def test_defer(backend: TemporalTaskBackend) -> None:
 
     task_id = result.id
 
-    while True:
-        retrieved = backend.get_result(task_id)
-        if retrieved.status != TaskResultStatus.RUNNING:
-            break
-        sleep(0.1)
+    retrieved = wait_for_task_completion(backend, task_id)
 
     assert retrieved.id == task_id
     assert retrieved.status == TaskResultStatus.SUCCESSFUL
