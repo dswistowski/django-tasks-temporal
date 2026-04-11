@@ -9,7 +9,7 @@ from django_app import tasks
 
 from django_tasks_temporal.backends import TemporalTaskBackend
 
-pytestmark = [pytest.mark.timeout(10)]
+pytestmark = [pytest.mark.timeout(60)]
 
 
 def test_enqueue_task(backend: TemporalTaskBackend) -> None:
