@@ -1,5 +1,9 @@
 # django-tasks-temporal
 
+[![CI](https://github.com/dswistowski/django-tasks-temporal/actions/workflows/ci.yml/badge.svg)](https://github.com/dswistowski/django-tasks-temporal/actions/workflows/ci.yml)
+[![PyPI version](https://badge.fury.io/py/django-tasks-temporal.svg)](https://badge.fury.io/py/django-tasks-temporal)
+[![Python versions](https://img.shields.io/pypi/pyversions/django-tasks-temporal.svg)](https://pypi.org/project/django-tasks-temporal/)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A Temporal task queue backend for Django 6.0's built-in task framework.

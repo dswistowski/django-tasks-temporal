@@ -99,7 +99,7 @@ jobs:
           echo $! > worker.pid
 
       - name: Wait for worker
-        run: sleep 5
+        run: sleep 7
 
       - name: Run pytest
         run: uv run pytest -v --tb=short --disable-warnings ./tests
